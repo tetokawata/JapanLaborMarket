@@ -1,0 +1,9 @@
+---
+title: "労働経済学2"
+subtitle: "序論"
+author: "川田恵介"
+format: 
+    revealjs:
+      self-contained: true
+---
+

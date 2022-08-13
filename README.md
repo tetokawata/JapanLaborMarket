@@ -1,2 +1,3 @@
 # JapanLaborMarket
-Provide data and methods example to examine Japanese Labor Market.
+
+Provide data and methods to examine Japanese Labor Market.

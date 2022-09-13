@@ -6,41 +6,43 @@ format: pptx
 ---
 
 
-```{r}
+```{r SetUp}
 pacman::p_load(tidyverse,
-              DiagrammeR)
+              DiagrammeR,
+              ggside)
+
 ```
 
 
-## 本講義の目的
+# 本講義の目的
 
-- 失業や賃金格差、長時間労働等の労働市場における問題は常に社会の関心を集めてきた。
+- 末長く使える二つの技能の習得
 
-- ミクロ・計量経済学応用して発展してきた労働経済学の知見を紹介し、現実の労働市場を分析を行う
+    - 労働経済学１で習得した理論 $+$ データから日本の労働市場を読み解く
+    
+    - データを適切に可視化する
 
-## 到達目標
+# 実習目標
 
-- 卒業論文やレポートのみならず、卒業後にも使える技能を習得
+- 統計ソフト（R）を用いた分析技術
 
-    - 労働経済学の基本的な分析ツールの理解
+    - 統合開発環境 (Rstudio)を用いて効率的かつ信頼性の高い分析フロー
 
-    - 統計ソフト（R）を用いた分析技術
+    - 本講義では可視化 (Visualization) の方法を特に紹介
 
-        - 統合開発環境 (Rstudio)を用いて効率的かつ信頼性の高い分析フロー
-
-## 講義の進め方
+# 講義の進め方
 
 - 講義スライド （教科書は使用しない）
 
 - 講義スライドは、 Site上で配布する
 
-## 成績評価
+# 成績評価
 
 - レポートによって採点
 
 - 基本的には、授業時間中に完成されること
 
-## 経済
+# 経済
 
 - “生産”と“分配”
 
@@ -52,23 +54,25 @@ pacman::p_load(tidyverse,
 
     - 市場、政府、家族、企業、村落共同体
 
+# 定義
 
-## 定義
-
-```{r}
+```{r DefineEconomy}
 grViz("digraph dot {
       graph [rankdir = LR,color = crimson]
       edge [color=black]
       node [shape = rectangle, color = darkslategray]
-      A [label = '企業']
-      B [label = '家計']
-      A -> B [label = 配当・賃料・賃金]
-      B -> A [label = 土地・資本・労働力]
+      A [label = '企業', shape = circle]
+      a [label = '配当・賃料・賃金']
+      B [label = '家計', shape = circle]
+      b [label = '土地・資本・労働力']
+      A -> a -> B
+      B -> b -> A
+      {rank = same;a;b}
       }")
 ```
 
 
-## 労働市場
+# 労働市場
 
 - 労働市場: 非常に重要な要素を決定
 
@@ -84,21 +88,32 @@ grViz("digraph dot {
 
     - 分配に大きな影響
 
-## 基本統計
+# 基本統計
 
 - 全ての"数字”は、定義に従って計算されている
 
+    - 字面から受ける印象とは”必ず”完全一致しない
+
 - 誤認識の多くは、定義を確認していないことに起因する
 
-## 定義
+# 労働力調査
 
-```{r}
+- 毎月末に行われる家計調査
+
+- 労働状態を捉える上での最も基本となる調査の一つ
+
+    - [詳細](https://www.stat.go.jp/data/roudou/definit.html)
+
+
+# 定義
+
+```{r DefineLabor}
 grViz("digraph dot {
-      graph [rankdir = UB,color = crimson]
+      graph [rankdir = LR,color = crimson]
       edge [color=black]
       node [shape = rectangle, color = darkslategray]
       A [label = '総人口']
-      B1 [label = '15歳以下']
+      B1 [label = '15歳以下', shape = circle]
       B2 [label = '15歳以上']
       C1 [label = '労働力']
       C2 [label = '非労働力', shape = circle]
@@ -113,3 +128,404 @@ grViz("digraph dot {
 
 
 
+# 定義
+
+- 就業者: 「従業者」と「休業者」を合わせたもの
+
+    - 従業者: 調査週間中に収入を伴う仕事を1時間以上した者
+
+    - 休業者: 仕事を持ちながら，調査週間中に少しも仕事をしなかった者のうち，自営業主・雇用主・非雇用者
+
+- 完全失業者: 次の3つの条件を満たす者
+
+    - 調査週間中、就業者ではない
+
+    - 仕事があればすぐ就くことができる
+
+    - 調査週間中，仕事を探す活動や事業を始める準備をした
+
+- 非労働力: 15才以上で就業者・完全失業者ではないもの
+
+# Quiz: どこに分類される？
+
+- 働きたいが、
+
+    - 「介護に忙殺され、何も就職活動ができていない」
+
+    - 「バイト先が暇で、二週間シフトが入らない」
+    
+    - 「子供が生まれ育児休暇を取得した」
+    
+- 現実の回答では、測定誤差（誤回答）も存在する
+
+# 推移
+
+```{r AllSeries, dev = 'ragg_png'}
+TempAll <- readxl::read_excel("Data/LaborForceYear.xlsx", 
+                           sheet = "All") |> 
+  pivot_longer(cols = c(Employment,
+                            Unemployment,
+                            NonLabor),
+               values_to = "N",
+               names_to = "Type")
+
+TempAll |> 
+  filter(Year <= 2021) |> 
+  group_by(Year,Type) |> 
+  mutate(N = sum(N)) |> 
+  ungroup() |> 
+  distinct(Year,
+           N,
+           Type) |> 
+  ggplot(aes(x = Year,
+             y = N,
+             color = Type)) +
+  geom_line() +
+  theme_bw()
+```
+
+# 推移
+
+```{r AllSeriesAlternative, dev = 'ragg_png'}
+TempAll <- readxl::read_excel("Data/LaborForceYear.xlsx", 
+                           sheet = "All") |> 
+  pivot_longer(cols = c(Employment,
+                            Unemployment,
+                            NonLabor),
+               values_to = "N",
+               names_to = "Type")
+
+TempAll |> 
+  filter(Year <= 2021) |> 
+  group_by(Year,Type) |> 
+  mutate(N = sum(N)) |> 
+  ungroup() |> 
+  distinct(Year,
+           N,
+           Type) |> 
+  ggplot(aes(x = Year,
+             y = N,
+             fill = Type)) +
+  geom_area() +
+  theme_bw()
+```
+
+
+# 推移: 男女別
+
+```{r SexSeries, dev = 'ragg_png'}
+TempAll <- readxl::read_excel("Data/LaborForceYear.xlsx", 
+                           sheet = "All") |> 
+  pivot_longer(cols = c(Employment,
+                            Unemployment,
+                            NonLabor),
+               values_to = "N",
+               names_to = "Type")
+
+TempMale <- readxl::read_excel("Data/LaborForceYear.xlsx", 
+                           sheet = "Male") |> 
+  mutate(Gender = "Male") |> 
+  pivot_longer(cols = c(Employment,
+                            Unemployment,
+                            NonLabor),
+               values_to = "N",
+               names_to = "Type")
+
+TempFemale <- tibble(Year = TempAll$Year,
+                     Month = TempAll$Month,
+                     N = TempAll$N - TempMale$N,
+                     Type = TempAll$Type,
+                     Gender = "Female")
+
+bind_rows(TempMale,
+          TempFemale) |> 
+  filter(Year <= 2021) |> 
+  group_by(Year,Gender,Type) |> 
+  mutate(N = sum(N)) |> 
+  ungroup() |> 
+  distinct(Year,
+           Gender,
+           N,
+           Type) |> 
+  ggplot(aes(x = Year,
+             y = N,
+             color = Type)
+         ) +
+  geom_line() +
+  theme_bw() +
+  facet_wrap(~Gender)
+```
+
+# データ分析の論点: 因果性
+
+- ここ１０年で非労働力の減少と就業者の増加が観察される
+
+    - ここ数年は頭打ち
+    
+- 非労働力が減少した **から** 就業者が増えた？ (因果的命題)
+
+# データ分析の論点: 因果性
+
+```{r CausalRelation}
+grViz("digraph dot {
+      graph [rankdir = LR,color = crimson]
+      edge [color=black]
+      node [shape = rectangle, color = darkslategray]
+      A [label = '非労働者',]
+      B [label = '就業者']
+      A -> B
+      B -> A
+      }")
+```
+
+# データ分析の論点: 因果性
+
+```{r RichCausalRelation}
+grViz("digraph dot {
+      graph [rankdir = LR,color = crimson]
+      edge [color=black]
+      node [shape = rectangle, color = darkslategray]
+      A [label = '非労働者',]
+      B [label = '就業者']
+      U [label = '失業者']
+      C [label = '政策']
+      D [label = '環境変化']
+      C -> A,B,U
+      D -> A,B,U
+      }")
+```
+
+# データ分析の論点
+
+- "全て"のデータは不完全
+
+    - 限られた事例、特徴しか観察できない
+    
+    - 労働力調査は4万家計"のみ"調査
+    
+    - "観察できない要因が大きく偏る"リスクが常に存在
+    
+- 同じ研究課題について、同じ手法で、無数に独立した研究チームが取り組む
+
+    - 理想的には同じ結論が出てほしい (HardScience)
+    
+    - 現実的には違う結論が出て来る 
+    
+        - その中で何に合意できるか？ (SoftScience)
+        
+# 例: 武蔵大学生の就業率
+
+- 100名の研究者が、ランダムに選んだ学生10名を調査
+
+- 就業率(バイトしている学生割合)を調べたい
+
+    - 調査結果(データ)内のアルバイト割合を使用
+
+# 例: 武蔵大学生の就業率
+
+```{r Sim}
+Sim <- function(i){
+  set.seed(i)
+  temp <- tibble(x = mean(sample(0:1,
+                      10,
+                      replace = TRUE,
+                      prob = c(4/10,6/10))),
+                 ResearcherID = i)
+  return(temp)
+}
+
+map_dfr(1:100,
+        Sim) |> 
+  ggplot(aes(y = ResearcherID,
+             x = x)) +
+  geom_point() +
+  ggside::geom_xsidehistogram() +
+  theme_bw()
+```
+
+
+# Open Source & Code を用いたデータ分析
+
+- Open Source: 誰でも無料で使用でき、プログラムも公開されている
+
+    - 今日のデータ分析を支える最重要ツール
+
+- Code: $\simeq$ プログラム
+
+- 研究者のみならず、企業や政府などの実務者においても重要拡大
+
+# ツールの進歩
+
+- オープンソースの分析言語(RやPythonなど）やその周辺開発環境は急速に発展
+
+    - "再現可能性" の担保が主眼の一つ
+    
+    - Documentationの選択肢も拡大 (Dynamic documentation)
+    
+- "Excel"を用いた分析の致命的欠点
+
+    - 作業ミスを事後的に発見できない
+    
+    - 有料
+
+# 透明性確保に向けた要求: 分析言語
+
+- Open source
+
+- Code first
+
+- 広いUser community
+
+    - 身近にいるかも大事！！！
+
+- Package等のバージョン管理・単純ミスの削減への支援
+
+    - 現状 Python と [R](https://cran.r-project.org/) が人気選択肢
+
+# 認知負荷の軽減
+
+- 人間はいろんなことを忘れ、ミスを犯し、見逃す
+
+- 伝統的なデータ分析は、複数のファイルを跨った作業を要求する: 分析コード + Word | Tex + 図表
+
+    - うっかりミスの源泉
+
+    - Excelではミスを事後的に発見することも難しい
+
+- Dynamic documentation: **一つのファイル**に全てを分かりやすく記述する
+
+    - 複数の形式(HTML, Word, PowerPoints, PDF 等)で出力でき、コミュニケーションも容易
+
+# Rstudio
+
+- 現[Rstudio社](https://www.rstudio.com/)(10月から[Posit社](https://posit.co/)に改名)が提供するサービス
+
+- Rstudio: R・Python向けの統合開発環境 (IDE)
+
+    - コーディングの効率化 + 再現可能性確保に有効
+
+
+# 参考動画
+
+- **RとRStudioのインストール** [動画](https://youtu.be/fDlXx8e5W78)
+    
+- パッケージのインストール [動画](https://youtu.be/2fmThveX7_s)
+  
+  - 必要パッケージ: tidyverse, cobalt, estimatr, dotwhisker, MatchIt
+    
+- プロジェクトフォルダーの作成 [動画](https://youtu.be/rqQP4jsF0oQ)
+    
+- データの取り込み [動画](https://youtu.be/f2EU44WFyQM)
+  
+- Quartoの動作確認 [動画](https://youtu.be/__2sRmuUIHg)
+  
+- Rcloudへの登録 [動画](https://youtu.be/yF6NxxvpzjE)
+  
+  - 注意: 動画は全て限定公開であり、YouTubeで直接検索してもヒットしません
+
+
+# Quarto
+    
+- [Quarto](https://quarto.org/): R | Python | Julia 向けのDynamic Documentation
+
+    - R向けDynamic Documentation **Rmarkdown** の後継
+
+    - 他のIDE (Jupter notebookやVS Code) でも使用可能
+    
+    - 一つのソースファイルから、HTML, PDFやPowerPointなどで出力可能
+
+# イメージ
+
+```{r}
+grViz("digraph dot {
+      graph [rankdir = LR,color = crimson]
+      edge [color=black]
+      node [shape = rectangle, color = darkslategray]
+      A1 [label = 'Julia']
+      A2 [label = 'R']
+      A3 [label = 'Python']
+      A4 [label = '本文']
+      B [label = 'Quartro']
+      C1 [label = 'Word']
+      C2 [label = 'Html']
+      C3 [label = 'PDF (Bemear)']
+      C4 [label = 'PowerPoint']
+      B1 [label = 'Rstudio']
+      B2 [label = 'VS Code']
+      A1,A2,A3,A4 -> B -> C1,C2,C3,C4
+      B1 -> B -> B2 [arrowhead = none]
+      {rank = same; B1;B;B2}
+      }")
+```
+
+# おすすめ設定
+
+- Tools -> Grobal options -> Rmarkdown -> Basic から、 "Show output inline..." のチェックを外す
+
+- Visual モードをSource モードに切り替える
+
+    - 現状では、多くの結果を表示すると挙動が遅くなることがあるため
+
+
+# コーディングのロードマップ
+
+```{r WorkFlow, dev='ragg_png'}
+grViz("digraph dot {
+      graph [rankdir = UB,color = crimson]
+      edge [color=black]
+      node [shape = rectangle, color = darkslategray]
+      A [label = 'コーディング']
+      B [label = 'Project folderの作成']
+      C [label = 'Git | 仮想環境 (Docker, renv) の設定']
+      D [label = 'Packageのインストール']
+      E [label = 'データのアップロード']
+      F [label = 'Cording']
+      G [label = '環境込みで出力']
+      A -> B -> D -> E -> F ->G
+      B -> C -> D
+      }")
+```
+
+
+# Project folder
+
+- Passが接続されるfolder
+
+- 分析に用いるデータ、コード、成果物(図やデータ)を保存
+
+# Packages
+
+- "User"により作成された関数
+
+    - 著名なRepositryである [CRAN](https://cran.r-project.org/) に掲載されているパッケージは、オンラインから容易にインストールできる
+    
+    - 因果推論に関わるパッケージも豊富 ([TaskViews](https://cran.r-project.org/web/views/CausalInference.html))
+
+# 推奨Packages
+
+-   データ処理: [tidyverse](https://www.tidyverse.org/)
+
+-   Dynamic Document: [quarto](https://quarto.org/)
+
+-   Summary statics: [gtsummary](https://www.danieldsjoberg.com/gtsummary/) $+$ [cobalt](https://ngreifer.github.io/cobalt/)
+
+
+#  Rの基本文法
+
+- **入力**を **関数** によって変換し、**出力**せよ
+
+```{r}
+grViz("digraph dot {
+      graph [rankdir = LR,color = crimson]
+      edge [color=black]
+      node [shape = rectangle, color = darkslategray]
+      A1 [label = '入力: データ']
+      A2 [label = '入力: 推定式']
+      A3 [label = '入力: パラメータ']
+      B [label = '関数']
+      C1 [label = '出力: データ']
+      C2 [label = '出力: 計算結果']
+      C3 [label = '出力: 図']
+      A1,A2,A3 -> B -> C1,C2,C3
+      }")
+```

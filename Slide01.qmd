@@ -21,6 +21,8 @@ pacman::p_load(tidyverse,
     - 労働経済学１で習得した理論 $+$ データから日本の労働市場を読み解く
     
     - データを適切に可視化する
+    
+- 講義資料: https://github.com/tetokawata/JapanLaborMarket
 
 # 実習目標
 

@@ -1,0 +1,106 @@
+---
+title: "比率"
+subtitle: "労働経済学2"
+author: "川田恵介"
+format: revealjs
+self-contained: true
+execute: 
+  warning: false
+  message: false
+  echo: false
+---
+
+## 比率
+
+```{r}
+pacman::p_load(tidyverse)
+```
+
+
+- しばしば”比率”が報告される
+
+    - 例: 労働力率 = 労働力/15才以上人口
+    
+    - 15才以上人口の中での労働力の割合
+    
+- 解釈がしやすくなる場合がある
+
+    - ご解釈が生まれやすくなる
+    
+- 分母に注意
+
+## 就業率
+
+```{r AllSeriesAlternative, dev = 'ragg_png'}
+TempAll <- readxl::read_excel("Data/LaborForceYear.xlsx", 
+                           sheet = "All") |> 
+  group_by(Year) |> 
+  mutate(Employment = sum(Employment),
+         Unemployment = sum(Unemployment),
+         NonLabor = sum(NonLabor)) |> 
+  ungroup() |> 
+  distinct(Year,
+           Employment,
+           Unemployment,
+           NonLabor) |> 
+  mutate(EmploymentRate = Employment/(Employment + Unemployment),
+         WideEmploymentRate = Employment/(Employment + Unemployment + NonLabor)
+         )
+
+TempAll |> 
+  filter(Year <= 2021) |>  
+  ggplot(aes(x = Year,
+             y = EmploymentRate,
+             color = "就業者数/労働力")) +
+  geom_line() +
+  geom_line(aes(y = WideEmploymentRate,
+                color = "就業者数/15才以上人口")) +
+  theme_bw() +
+  ylab("") +
+  xlab("")
+```
+
+## 労働市場の主要指標
+
+- 代表的な指標は以下の通り
+
+    - 就業率 $=$ 就業者数/15才以上人口
+
+    - 労働力率 $=$ 労働力/15才以上人口
+
+    - 失業率 $=$ 失業者数/労働力
+
+## 失業率
+
+```{r UnemploymentRate, dev = 'ragg_png'}
+TempAll <- readxl::read_excel("Data/LaborForceYear.xlsx", 
+                           sheet = "All") |> 
+  group_by(Year) |> 
+  mutate(Employment = sum(Employment),
+         Unemployment = sum(Unemployment),
+         NonLabor = sum(NonLabor)) |> 
+  ungroup() |> 
+  distinct(Year,
+           Employment,
+           Unemployment,
+           NonLabor) |> 
+  mutate(UnemploymentRate = Unemployment/(Employment + Unemployment),
+         WideUnemploymentRate = Unemployment/(Employment + Unemployment + NonLabor)
+         )
+
+TempAll |> 
+  filter(Year <= 2021) |>  
+  ggplot(aes(x = Year,
+             y = UnemploymentRate,
+             color = "失業者数/労働力")) +
+  geom_line() +
+  geom_line(aes(y = WideUnemploymentRate,
+                color = "失業者数/15才以上人口")) +
+  theme_bw() +
+  ylab("") +
+  xlab("")
+```
+
+## クイズ
+
+- 失業率と就業率が"同時"に低下した。何が起こった？

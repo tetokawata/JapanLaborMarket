@@ -1,0 +1,142 @@
+---
+title: "Rの基礎"
+subtitle: "労働経済学2"
+author: "川田恵介"
+format: revealjs
+self-contained: true
+---
+
+## おすすめワークフロー
+
+```{r SetUp}
+pacman::p_load(tidyverse,
+              DiagrammeR)
+```
+
+```{r WorkFlow, dev='ragg_png'}
+grViz("digraph dot {
+      graph [rankdir = UB,color = crimson]
+      edge [color=black]
+      node [shape = rectangle, color = darkslategray]
+      B [label = 'Project folderの作成']
+      D [label = 'Packageのインストール']
+      E [label = 'データのアップロード']
+      F [label = 'コード開発']
+      G [label = '環境込みで出力']
+      B -> D -> E -> F ->G
+      }")
+```
+
+## コード開発
+
+- コンピュータが"理解できる言語"で、命令計画者を作成
+
+- 例: LaborForceYear.csvを読み込み、Dataという名前で保存せよ
+
+```{r Example}
+#| echo: true
+library(tidyverse,
+        gtsummary) # tidyverseのロード
+
+Data <- read_csv("LaborForceYear.csv") # csvファイルの読み込み
+```
+
+
+## Rの基本文法
+
+- **入力Object** を **関数**によって変換し、 **出力Object** 
+
+```{r Grammer}
+grViz("digraph dot {
+      graph [rankdir = LR,color = crimson]
+      edge [color=black]
+      node [shape = rectangle, color = darkslategray]
+      A1 [label = '入力: データ']
+      A2 [label = '入力: 推定式']
+      A3 [label = '入力: パラメータ']
+      B [label = '関数']
+      C1 [label = '出力: データ']
+      C2 [label = '出力: 計算結果']
+      C3 [label = '出力: 図']
+      A1,A2,A3 -> B -> C1,C2,C3
+      }")
+```
+
+## 一般例
+
+```{r GeneralExample}
+#| eval: false
+#| echo: true
+
+OutputObject <- verb(InputObject)
+```
+
+## Project folder
+
+- Passが接続されるfolder
+
+- csvやexcel形式で保存されている"データ"をRのObjectに変換
+
+    - Project folderを使わないとパス指定が必要になり煩雑
+
+- 分析に用いるデータ、コード、成果物(図やデータ)が自動的に保存される
+
+## Packages
+
+- "User"により作成された関数
+
+    - とりあえずrmarkdownとtidyverseをインストール
+
+## 付録: おすすめ設定
+
+- Tools -> Grobal options -> Rmarkdown -> Basic から、 "Show output inline..." のチェックを外す
+
+- Visual モードをSource モードに切り替える
+
+    - 現状では、多くの結果を表示すると挙動が遅くなることがあるため
+    
+## ggplot2
+
+- tidyverseに収録される可視化用関数群
+
+- キャンバスの作成 + 描写の文法で、柔軟に図を可視化できる
+
+## 例
+
+```{r}
+#| echo: true
+#| 
+ggplot(Data,aes(x = Year,
+                y = Employment)) + # キャンバスの作成
+  geom_line() + # タイムラインの描写
+  facet_wrap(~Month) # 月毎に分割
+```
+
+## 基本
+
+- ggplotに用いるデータとaes内にx軸、y軸に用いる変数を指定
+
+- geom_@@ で描写する図の種類を指定
+
+    - goem_line: タイムライン
+    
+    - goem_dotplot: 散布図
+    
+    - geom_bar: 棒グラフ
+
+## 典型的間違い
+
+```{r}
+#| echo: true
+#| eval: false
+
+library(tidyverse,
+        gtsummary) 
+
+Data <- Read_csv("LaborForceYear.csv") # タイポ
+
+ggplot(Raw,aes(x = Year, # 存在しないObjectを参照
+                y = Employment)) <- # 関係子間違い
+  geom_line() +
+  facet_wrap(~Month)
+```

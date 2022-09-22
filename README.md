@@ -2,4 +2,4 @@
 
 - 武蔵大学における講義: 労働経済学2受講生を対象としたレポジトリです。
 
-- 講義スライドはSlide、データはPublicDataからダウンロードできます。
+- 講義スライドはSlide、データはPublicData、Example codeはExampleCode、からダウンロードできます。

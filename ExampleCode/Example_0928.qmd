@@ -1,0 +1,36 @@
+---
+title: "Example3"
+author: "川田恵介"
+format: docx
+editor: visual
+---
+
+# 講義例
+
+これは授業の例です。
+
+# Rコード
+
+```{r}
+library(tidyverse)
+library(readxl)
+
+Data <- read_excel("LaborForceYear.xlsx")
+
+Data <- mutate(Data, 
+               Labor = Employment + Unemployment,
+               EmploymentRate = Employment/(Labor + NonLabor))
+
+ggplot(Data, 
+       aes(x = Year,y = EmploymentRate)) +
+  geom_line() +
+  facet_wrap(~Month)
+```
+
+# 結果の説明
+
+- 増加傾向
+
+- 近年は頭打ち
+
+

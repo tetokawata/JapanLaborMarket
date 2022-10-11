@@ -11,6 +11,21 @@ self-contained: true
 ```{r SetUp}
 pacman::p_load(tidyverse,
               DiagrammeR)
+
+LaborForceYear <- readxl::read_excel("Data/LaborForceYear.xlsx", 
+    sheet = "All")
+
+LaborForceYearMale <- readxl::read_excel("Data/LaborForceYear.xlsx", 
+    sheet = "Male")
+
+LaborForceFemale <- tibble(Year = LaborForceYear$Year,
+                           Month = LaborForceYear$Month,
+                           Employment = LaborForceYear$Employment - LaborForceYearMale$Employment,
+                           Unemployment = LaborForceYear$Unemployment - LaborForceYearMale$Unemployment,
+                           NonLabor = LaborForceYear$NonLabor - LaborForceYearMale$NonLabor)
+
+write_csv(LaborForceFemale,
+          "PublicData/LaborForceYearFemale.csv")
 ```
 
 ```{r WorkFlow, dev='ragg_png'}

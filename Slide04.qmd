@@ -1,0 +1,353 @@
+---
+title: "フロー/ストック"
+subtitle: "労働経済学2"
+author: "川田恵介"
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    self-contained: true
+execute: 
+  warning: false
+  message: false
+  echo: false
+bibliography: references.bib
+---
+
+```{r}
+pacman::p_load(tidyverse,
+               DiagrammeR)
+```
+
+## ストック・フロー
+
+-   失業者数、就業者数、非労働力 $=$ "量"についての、ある時点のストック水準を示す
+
+-   フローにも注目した方がいい場合も多い
+
+    -   環境変化により敏感に反応
+
+    -   政策介入がし易い
+
+## 例: ストック = 水面水準、 フロー = 流入出量
+
+```{r}
+grViz("digraph dot {
+      graph [rankdir = TB,color = crimson]
+      edge [color=black]
+      node [shape = rectangle, color = darkslategray]
+      A1 [label = '早明浦ダム']
+      A2 [label = '田んぼ']
+      A3 [label = '海']
+      A1 -> A2 -> A3
+      }")
+```
+
+## 労働市場のフロー
+
+```{r}
+grViz("digraph dot {
+      graph [rankdir = LR,color = crimson]
+      edge [color=black]
+      node [shape = rectangle, color = darkslategray]
+      A1 [label = '就業者']
+      A2 [label = '失業者']
+      A3 [label = '非労働力']
+      A1 -> A2
+      A1 -> A3
+      A2 -> A1
+      A2 -> A3
+      A3 -> A1
+      A3 -> A2
+      }")
+```
+
+## 入職のフロー
+
+```{r}
+grViz("digraph dot {
+      graph [rankdir = TB,color = crimson]
+      edge [color=black]
+      node [shape = rectangle, color = darkslategray]
+      A1 [label = '非労働力 | 失業者']
+      A2 [label = '求職者']
+      A3 [label = '就業者']
+      A1 -> A2 
+      A2 -> A3 [label = '職業紹介サービス']
+      }")
+```
+
+## 公的職業紹介
+
+-   [ハローワーク](https://www.hellowork.mhlw.go.jp/)
+
+-   業務上で収集されたデータ (業務データ) が毎月報告されている
+
+    -   [職業安定業務統計](https://www.mhlw.go.jp/toukei/list/114-1.html)
+
+    -   新規就職件数（入職者数）、(有効)求人数、(有効)求職者数などが報告されている
+
+-   特に有効求人倍率は、景気動向の先行指標として注目される
+
+## 調査データ VS 業務データ
+
+-   調査データ: 調査そのものを目的に収集されたデータ
+
+    -   調査目的を果たせるようにデザイン
+
+    -   コストがかかり、サンプリング調査であることが多い
+
+    -   真の値との間に、誤差が生じる
+
+-   業務データ: 業務上の必要性から収集されたデータ
+
+    -   全数調査
+
+    -   本来の調査目的とは乖離
+
+## 入職者数 (3月)
+
+```{r}
+TempDataFull <- readxl::read_excel("PublicData/HallowFullTime.xlsx")
+TempDataPart <- readxl::read_excel("PublicData/HallowPartTime.xlsx")
+
+bind_rows(TempDataFull,
+          TempDataPart) |> 
+  filter(Month == 3) |> 
+  ggplot(aes(x = Year,
+             y = Hir,
+             color = Type)) +
+  geom_line() +
+  theme_bw()
+
+```
+
+
+## 有効求人件数 (3月)
+
+```{r}
+TempDataFull <- readxl::read_excel("PublicData/HallowFullTime.xlsx")
+TempDataPart <- readxl::read_excel("PublicData/HallowPartTime.xlsx")
+
+bind_rows(TempDataFull,
+          TempDataPart) |> 
+  filter(Month == 3) |> 
+  ggplot(aes(x = Year,
+             y = Vacancy,
+             color = Type)) +
+  geom_line() +
+  theme_bw()
+
+```
+
+## 有効求職件数 (3月)
+
+```{r}
+TempDataFull <- readxl::read_excel("PublicData/HallowFullTime.xlsx")
+TempDataPart <- readxl::read_excel("PublicData/HallowPartTime.xlsx")
+
+bind_rows(TempDataFull,
+          TempDataPart) |> 
+  filter(Month == 3) |> 
+  ggplot(aes(x = Year,
+             y = Seeker,
+             color = Type)) +
+  geom_line() +
+  theme_bw()
+
+```
+
+## 率への変換
+
+- 失業者数など比べても、解釈が難しい
+
+    - 求職者数、求人数の変動も大きい
+
+- 率への変換
+
+- 入職率 $=$ 新規就職件数/求職件数
+
+- 求人倍率 $=$ 求人件数/求職件数
+
+## 入職率 (3月)
+
+```{r}
+TempDataFull <- readxl::read_excel("PublicData/HallowFullTime.xlsx")
+TempDataPart <- readxl::read_excel("PublicData/HallowPartTime.xlsx")
+
+bind_rows(TempDataFull,
+          TempDataPart) |> 
+  filter(Month == 3) |> 
+  mutate(Y = Hir/Seeker) |> 
+  ggplot(aes(x = Year,
+             y = Y,
+             color = Type)) +
+  geom_line() +
+  theme_bw()
+
+```
+
+
+## 求人倍率 (3月)
+
+```{r}
+TempDataFull <- readxl::read_excel("PublicData/HallowFullTime.xlsx")
+TempDataPart <- readxl::read_excel("PublicData/HallowPartTime.xlsx")
+
+bind_rows(TempDataFull,
+          TempDataPart) |> 
+  filter(Month == 3) |> 
+  mutate(Y = Vacancy/Seeker) |> 
+  ggplot(aes(x = Year,
+             y = Y,
+             color = Type)) +
+  geom_line() +
+  theme_bw()
+
+```
+
+
+## 求人・求職 (3月)
+
+```{r}
+TempData <- readxl::read_excel("PublicData/HallowFullTime.xlsx")
+
+TempData |> 
+  filter(Month == 3) |> 
+  ggplot(aes(x = Vacancy,
+             y = Seeker,
+             label = Year)) +
+  geom_point() +
+  ggrepel::geom_text_repel() +
+  theme_bw()
+```
+
+## 経験則
+
+-   "経験則"として、求人数と求職者数には安定的な"負"の関係があることが多い
+
+    -   ビバレッジカーブ
+
+$$A=失業者\times 求職者$$
+
+## 付録: 対数
+
+```{r}
+tibble(X = seq(1,10)) |> 
+  mutate(LogX = log(X)) |> 
+  ggplot(aes(x = X,
+             y = X)) +
+  geom_point(aes(color = "実数")) +
+  geom_point(aes(y = LogX,
+                 color = "対数")) +
+  theme_bw()
+```
+
+## なぜビバレッジカーブが成り立つのか
+
+-   多くの理論研究
+
+    -   求人が増えると、入職が容易になり、求職者が減る
+
+-   理論上は逆の動きも予測しうる
+
+    -   求職者が増えると、求人活動の利益が高まり、求人が増える
+
+## とにかく失業者を0にすべき？
+
+-   なぜ失業者が発生するのか？
+
+    -   需要不足: 景気悪化などによる労働需要の減少
+
+    -   構造要因: 失業期間を含む転職活動、非労働状態からの労働復帰
+
+-   需要不足のみならば、0にすべきかも
+
+-   失業者は、どんなに景気が良くても存在
+
+    -   構造要因の存在
+
+## "過小"な失業
+
+-   「仕事をやめ、職探しに集中したくてもできない社会」
+
+    -   "転職しにくい・非労働状態から復帰しにくい"
+
+    -   労働需要の大きい企業への労働移動の阻害
+
+    -   雇用の"質"の低下
+
+## 政策研究
+
+-   "実務家"に"政策"を提案: 経済学の主目的の一つ
+
+    -   「\~である」 (事実命題) のみならず、「〜すべき」 (規範命題) を議論する必要が出てくる
+
+    -   極めて難しい
+
+-   例: ヒュームのギロチン 「事実命題のみからは、規範命題は導けない」
+
+    -   「多くの人が信号を守っているので、信号を守るべきだ」
+
+    -   「多くの人がゴミを早く出しているので、早く出してもいい」
+
+## 現実的なライン
+
+-   主張の透明性の確保
+
+    -   何を"政策変数"としているのか？
+
+    -   何を"良し"としているのか？
+
+    -   何を(政策的に操作できない)構造とするのか？
+
+## 適切な失業者の水準
+
+-   多くの議論
+
+    -   古典的には自然失業率など
+
+-   @michaillat :以下を想定
+
+    -   政策変数: 求職者数
+
+    -   目標: マッチング活動に従事する労働者数を最小化
+
+    -   構造: ビバレッジカーブ・求人に必要な労働者数 $=a$
+
+## 最適化問題
+
+$$\min u+a\times v$$
+
+$$subject\ to\ A=u\times v$$
+
+$$u^2=\sqrt{a}\sqrt{uv}$$
+
+## 答え
+
+- 適切な水準 $u^*$
+
+$$u^*=(a\times u\times v)^{1/2}$$
+
+## 求人・求職 (3月)
+
+```{r, dev='ragg_png'}
+TempData <- readxl::read_excel("PublicData/HallowFullTime.xlsx")
+
+TempData |> 
+  filter(Month == 3) |> 
+  mutate(OptimalSeeker_1 = sqrt(Seeker*Vacancy),
+         OptimalSeeker_05 = sqrt(0.5*Seeker*Vacancy)) |> 
+  ggplot(aes(x = Year,
+             y = Seeker)) +
+  geom_line(aes(color = "実数")) +
+  geom_line(aes(y = OptimalSeeker_1,
+                 color = "最適値:a=1")) +
+  geom_line(aes(y = OptimalSeeker_05,
+                 color = "最適値:a=0.5")) +
+  theme_bw()
+```
+
+## 引用
+
+

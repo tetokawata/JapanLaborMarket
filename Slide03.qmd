@@ -1,0 +1,370 @@
+---
+title: "寄与度分析"
+subtitle: "労働経済学2"
+author: "川田恵介"
+format: revealjs
+self-contained: true
+
+---
+
+```{r}
+pacman::p_load(tidyverse,
+               DiagrammeR)
+
+Raw <- readxl::read_excel("PublicData/LaborForceYear.xlsx",
+                          sheet = "All") |> 
+  filter(Year >= 1980)
+
+RawMale <- readxl::read_excel("PublicData/LaborForceYear.xlsx",
+                              sheet = "Male") |> 
+  filter(Year >= 1980)
+
+Temp <- tibble(Year = Raw$Year,
+               Month = Raw$Month,
+               Male = RawMale$Employment,
+               Female = Raw$Employment - RawMale$Employment) |> 
+  left_join(tibble(Month = Raw$Month[Raw$Year == 1980],
+                   Male0 = RawMale$Employment[Raw$Year == 1980],
+                   Female0 = Raw$Employment[Raw$Year == 1980] - RawMale$Employment[Raw$Year == 1980]),
+            by = "Month")
+```
+
+
+
+## 単位問題
+
+- $Year = Initial$ からの変化: $Y_{Year,Month} - Y_{Initial,Month}$
+
+    - $Y$ の単位に値が大きく依存 (1名 VS 1万名)
+
+- 割ることで比率に変える: 変化率
+
+$$\frac{Y_{Year,Month}-Y_{Initial,Month}}{Y_{Initial,Month}}$$
+
+- Initialと比べて何％変化したか？
+
+  - 2倍になれば100%
+
+## 指標分解
+
+- 寄与分析: 指標を厚生する各要素の、指標全体の変化への寄与
+
+  - 複数の変数の”和”として、定義できる指標を各年ごとに計算できる
+
+$$Y_{Year,Month}=\underbrace{X_{Year,Month}}_{変数1} + \underbrace{Z_{Year,Month}}_{変数2} + ...$$
+
+- 例: 総就業者数 = 男性就業者数 + 女性就業者数
+
+## 寄与度
+
+$$\frac{Y_{Year,Month}-Y_{Initial,Month}}{Y_{Initial,Month}}=\underbrace{\frac{X_{Year,Month}-X_{Initial,Month}}{Y_{Initial,Month}}}_{Xの寄与度}$$
+
+$$+\frac{Z_{Year,Month}-Z_{Initial,Month}}{Y_{Initial,Month}}+...$$
+
+
+## 寄与度
+
+```{r}
+Temp |> 
+  mutate(ContriMale = (Male-Male0)/(Male0 + Female0),
+         ContriFemale = (Female - Female0)/(Male0 + Female0)) |> 
+  filter(Year >= 1980) |> 
+  pivot_longer(c(ContriMale,ContriFemale)) |> 
+  ggplot(aes(x = Year,
+             y = value,
+             color = name)) +
+  geom_line() +
+  facet_wrap(~Month,
+             ncol = 3) +
+  theme_bw() +
+  ylab("") +
+  xlab("")
+```
+
+## 寄与率
+
+$$\frac{Y_{Year,Month}-Y_{Initial,Month}}{Y_{Year,Month}-Y_{Initial,Month}}=\underbrace{\frac{X_{Year,Month}-X_{Initial,Month}}{Y_{Year,Month}-Y_{Initial,Month}}}_{Xの寄与率}$$
+
+$$+\frac{Z_{Year,Month}-Z_{Initial,Month}}{Y_{Year,Month}-Y_{Initial,Month}}+...$$
+
+- 寄与率の総和は $1 = 100\%$
+
+## 寄与率
+
+```{r}
+Temp |> 
+  mutate(ContriMale = (Male-Male0)/(Male + Female - Male0 - Female0),
+         ContriFemale = (Female - Female0)/(Male + Female - Male0 - Female0)) |> 
+  filter(Year >= 1980) |> 
+  pivot_longer(c(ContriMale,ContriFemale)) |> 
+  ggplot(aes(x = Year,
+             y = value,
+             color = name)) +
+  geom_line() +
+  facet_wrap(~Month,
+             ncol = 3) +
+  theme_bw() +
+  ylab("") +
+  xlab("")
+```
+
+## 他の例
+
+- 足し算で表せられる指標であれば、応用可能
+
+- 例: 就業者数 = 15才以上人口 - 失業者数 - 非労働力
+
+## 寄与度
+
+```{r}
+Temp <- tibble(Year = Raw$Year,
+               Month = Raw$Month,
+               Employment = Raw$Employment,
+               Unemployment = Raw$Unemployment,
+               NonLabor = Raw$NonLabor) |> 
+  left_join(tibble(Month = Raw$Month[Raw$Year == 1980],
+               Employment0 = Raw$Employment[Raw$Year == 1980],
+               Unemployment0 = Raw$Unemployment[Raw$Year == 1980],
+               NonLabor0 = Raw$NonLabor[Raw$Year == 1980]),
+            by = "Month")
+
+write_csv(Temp,
+          "PublicData/DecompositionLFS.csv")
+
+Temp |> 
+  mutate(Pop0 = Employment0 + Unemployment0 + NonLabor0,
+         Pop = Employment + Unemployment + NonLabor) |> 
+  mutate(ContriPopulation = (Pop-Pop0)/Employment0,
+         ContriNonLabor = -(NonLabor-NonLabor0)/Employment0,
+         ContriUnemployment = -(Unemployment-Unemployment0)/Employment0) |> 
+  pivot_longer(c(ContriPopulation,ContriNonLabor,ContriUnemployment)) |> 
+  ggplot(aes(x = Year,
+             y = value,
+             color = name
+             )
+         ) +
+  geom_line() +
+  facet_wrap(~Month,
+             ncol = 3) +
+  theme_bw()
+```
+
+
+## 寄与率
+
+```{r}
+Temp <- tibble(Year = Raw$Year,
+               Month = Raw$Month,
+               Employment = Raw$Employment,
+               Unemployment = Raw$Unemployment,
+               NonLabor = Raw$NonLabor) |> 
+  left_join(tibble(Month = Raw$Month[Raw$Year == 1980],
+               Employment0 = Raw$Employment[Raw$Year == 1980],
+               Unemployment0 = Raw$Unemployment[Raw$Year == 1980],
+               NonLabor0 = Raw$NonLabor[Raw$Year == 1980]),
+            by = "Month")
+
+Temp |> 
+  mutate(Pop0 = Employment0 + Unemployment0 + NonLabor0,
+         Pop = Employment + Unemployment + NonLabor) |> 
+  mutate(ContriPopulation = (Pop-Pop0)/(Employment-Employment0),
+         ContriNonLabor = -(NonLabor-NonLabor0)/(Employment-Employment0),
+         ContriUnemployment = -(Unemployment-Unemployment0)/(Employment-Employment0)) |> 
+  pivot_longer(c(ContriPopulation,ContriNonLabor,ContriUnemployment)) |> 
+  ggplot(aes(x = Year,
+             y = value,
+             color = name
+             )
+         ) +
+  geom_line() +
+  facet_wrap(~Month,
+             ncol = 3) +
+  theme_bw()
+```
+
+## Rによる実装
+
+- 作図の前に、計算(四則演算)が必要
+
+- tidyverse (厳密にはdplyr) に収録されているmutate関数で新しい変数を作成できる
+
+    - Excelでもできるが、非推奨
+    
+- NewData <- mutate(OldData, NewVariable = Definition)
+
+## 寄与 = 因果関係?
+
+- 非労働力の負の寄与度 $=$「非労働力の変化の結果、就業者が一部減少した？」
+
+- 寄与分析: 定義式(会計式)を用いて、変化を”分解”
+
+- 「寄与分析の結果で因果効果を主張できる」とすれば、 **奇妙な主張** が量産されてしまう
+
+## 寄与率: 15才以上人口への寄与度
+
+```{r}
+Temp <- tibble(Year = Raw$Year,
+               Month = Raw$Month,
+               Employment = Raw$Employment,
+               Unemployment = Raw$Unemployment,
+               NonLabor = Raw$NonLabor) |> 
+  left_join(tibble(Month = Raw$Month[Raw$Year == 1980],
+               Employment0 = Raw$Employment[Raw$Year == 1980],
+               Unemployment0 = Raw$Unemployment[Raw$Year == 1980],
+               NonLabor0 = Raw$NonLabor[Raw$Year == 1980]),
+            by = "Month")
+
+Temp |> 
+  mutate(Pop0 = Employment0 + Unemployment0 + NonLabor0,
+         Pop = Employment + Unemployment + NonLabor) |> 
+  mutate(ContriEmployment = (Employment-Employment0)/(Pop0),
+         ContriNonLabor = (NonLabor-NonLabor0)/(Pop0),
+         ContriUnemployment = (Unemployment-Unemployment0)/(Pop0)) |> 
+  pivot_longer(c(ContriEmployment,ContriNonLabor,ContriUnemployment)) |> 
+  ggplot(aes(x = Year,
+             y = value,
+             color = name
+             )
+         ) +
+  geom_line() +
+  facet_wrap(~Month,
+             ncol = 3) +
+  theme_bw()
+```
+
+## 基本的発想
+
+- 結果が"奇妙"な場合
+
+    1 **奇妙な結果が正しい**
+    
+    2 なぜか間違えた
+    
+    3 **推論プロセスを見直す**
+
+- 1か3かで議論する
+
+- 推論プロセスの見直し: 用語の定義から考え直す
+
+## 原因とは
+
+- $X$ が原因で $Y$ が生じるとは？
+
+- 潜在結果モデル: $X$ が異なった並行世界間での $Y$ の値 $=$ $X$ の因果効果
+
+    - 2022年9月28日の就業者数が1000万人の世界と1500万人の世界で15歳以上人口は異なるのか？
+
+- 統計的因果推論や構造推定の必要性
+
+## 潜在的因果関係
+
+```{r}
+grViz("digraph dot {
+      graph [rankdir = LR,color = crimson]
+      edge [color=black]
+      node [shape = rectangle, color = darkslategray]
+      A1 [label = '15歳以上人口']
+      A2 [label = '就業者数']
+      A3 [label = '失業者数']
+      A4 [label = '非労働力']
+      B [label = '政策']
+      C [label = '構造的変化']
+      B,C -> A1 -> A2,A3,A4
+      B,C -> A2,A3,A4
+      A2 -> A3
+      A3 -> A2
+      A2 -> A4
+      A4 -> A2
+      A3 -> A4
+      A4 -> A3
+      {rank = same;A2;A3;A4}
+      }")
+```
+
+## 対数を用いた掛け算指標の分解
+
+- 掛け算や割り算で分解できる指標も存在
+
+    - 例: 就業率 = 就業者数/15歳以上人口
+
+## 対数差
+
+$$\log Y_{Year,Month}-\log Y_{Initial, Month}$$
+
+$$\simeq \frac{Y_{Year,Month}-Y_{Initial,Month}}{Y_{Initial,Month}}$$
+
+$$\simeq \frac{Y_{Year,Month}-Y_{Initial,Month}}{Y_{Year,Month}}$$
+
+## 対数差
+
+```{r}
+tibble(
+  Value = (Temp$Employment - Temp$Employment0) / Temp$Employment0,
+  Year = Temp$Year,
+  Month = Temp$Month,
+  type = "変化率A"
+) |>
+  bind_rows(tibble(
+    Value = (Temp$Employment - Temp$Employment0) / Temp$Employment,
+    Year = Temp$Year,
+    Month = Temp$Month,
+    type = "変化率B"
+  )) |>
+  bind_rows(tibble(
+    Value = log(Temp$Employment) - log(Temp$Employment0),
+    Year = Temp$Year,
+    Month = Temp$Month,
+    type = "対数差"
+  )) |>
+  ggplot(aes(
+    x = Year,
+    y = Value,
+    color = type
+  )) +
+  geom_line() +
+  facet_wrap(~Month)
+```
+
+## 対数の性質
+
+$$\log \frac{X}{Z}=\log X - \log Z$$
+
+$$\log XZ=\log X + \log Z$$
+
+## 分解
+
+$$\log Y_{Year,Month}-\log Y_{Initial, Month}$$
+
+$$=\log X_{Year,Month}/Z_{Year,Month}-\log X_{Initial, Month}/Z_{Year,Month}$$
+
+
+$$=\log X_{Year,Month}-\log X_{Initial,Month}$$
+
+$$- (\log Z_{Year,Month} - \log Z_{Year,Month})$$
+
+## 掛け算
+
+```{r}
+tibble(
+  Value = log(Temp$Employment) - log(Temp$Employment0),
+  Year = Temp$Year,
+  Month = Temp$Month,
+  type = "ContriEmployment"
+) |>
+  bind_rows(tibble(
+    Value = -log(Temp$Employment + Temp$Unemployment + Temp$NonLabor) +
+      log(Temp$Employment0 + Temp$Unemployment0 + Temp$NonLabor0),
+    Year = Temp$Year,
+    Month = Temp$Month,
+    type = "ContriLaborForce"
+  )) |>
+  ggplot(aes(
+    x = Year,
+    y = Value,
+    color = type
+  )) +
+  geom_line() +
+  facet_wrap(~Month,
+             ncol = 3)
+```
+

@@ -1,0 +1,37 @@
+---
+title: "Example5"
+author: "川田恵介"
+format: docx
+editor: visual
+---
+
+# 講義例
+
+これは授業の例です。
+
+# Rコード
+
+```{r}
+library(tidyverse)
+library(readxl)
+
+Data <- read_excel("HallowFullTime.xlsx")
+
+Data <- mutate(Data,
+               OptSeeker = (Seeker*Vacancy)^0.5)
+
+ggplot(Data, aes(x = Year,
+                 y = OptSeeker)) +
+  geom_line() +
+  geom_line(aes(y = Seeker,
+                color = "Observed")) +
+  facet_wrap(~ Month)
+```
+
+# 結果の説明
+
+- 増加傾向
+
+- 近年は頭打ち
+
+

@@ -1,0 +1,32 @@
+---
+title: "Untitled"
+format: html
+---
+
+- Nはサンプルサイズ, pはサンプル内での比率（自由に変更できる）
+
+```{r}
+library(tidyverse)
+p <- 0.5
+N <- 100
+
+Error <- 1.96*(sqrt(p*(1-p)))/sqrt(N-1)
+Lower <- p - Error
+Upper <- p + Error
+
+Result <- tibble(p = p,
+                 Lower = Lower,
+                 Upper = Upper,
+                 N = N)
+
+ggplot(Result, 
+       aes(y = N,
+           x = p,
+           xmin = Lower,
+           xmax = Upper)) +
+  geom_pointrange() +
+  geom_vline(xintercept = 0.5) +
+  ylab("サンプルサイズ") +
+  xlab("比率")
+```
+

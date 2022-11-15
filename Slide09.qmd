@@ -1,0 +1,426 @@
+---
+title: "統計的因果推論"
+subtitle: "労働経済学2"
+author: "川田恵介"
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    self-contained: true
+execute: 
+  warning: false
+  message: false
+  echo: false
+bibliography: references.bib
+---
+
+## 統計的因果推論
+
+```{r}
+pacman::p_load(DiagrammeR,
+               tidyverse,
+               gtsummary,
+               ggside,
+               estimatr,
+               patchwork,
+               magrittr,
+               dagitty,
+               ggdag)
+
+TempDataMinimumWage <- read_csv("PublicData/MinimumWage.csv") |> 
+  pivot_longer(!Pref,
+               values_to = "MinimumWage",
+               names_to = "Year") |> 
+  mutate(Year = as.numeric(Year))
+
+TempDataNewHir <- read_csv("PublicData/NewHirPref.csv") |> 
+  pivot_longer(!Year,
+               values_to = "Employment",
+               names_to = "Pref")
+
+TempDataNewVac <- read_csv("PublicData/NewVacPref.csv") |> 
+  pivot_longer(!Year,
+               values_to = "Vacancy",
+               names_to = "Pref")
+
+DataReal <- TempDataMinimumWage |> 
+  inner_join(TempDataNewHir,
+             by = c("Pref","Year")
+             ) |> 
+  inner_join(TempDataNewVac,
+             by = c("Pref","Year"))
+
+TempCrime <- readxl::read_excel("Data/Crime.xls", 
+    sheet = "Clean")
+TempLibrary <- readxl::read_excel("Data/Library.xlsx", 
+    sheet = "Clean") |> 
+  mutate(Pref = str_remove(Pref, "   "))
+
+DataCrimeLibrary <- 
+  TempCrime |> 
+  inner_join(TempLibrary,
+             by = "Pref")
+```
+
+- 経済理論ととともに、今日的な統計的因果推論の中核的な手法
+
+- ある介入(最低賃金の増額)が、結果（新規就職件数）に与える因果効果
+
+- その他の要因の影響からどう区別するか？
+
+    - 介入の決まり方を推論する (DesignBasedApproach)
+
+    - 結果の決まり方を推論する (OutcomeModelingApproach)
+
+## 例: 図書館 - 犯罪
+
+- 文化施設（図書館）を増やすと、犯罪を減らせるか？
+
+```{r, dev='ragg_png'}
+DataCrimeLibrary |> 
+  ggplot(aes(x = Number,
+             y = Crime)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_bw()
+```
+
+## 例: 図書館 - 犯罪
+
+- 文化施設（図書館）を増やすと、犯罪を減らせるか？
+
+```{r, dev='ragg_png'}
+DataCrimeLibrary |> 
+  ggplot(aes(x = Number,
+             y = Crime,
+             label = Pref)) +
+  geom_point() +
+  ggrepel::geom_label_repel() +
+  geom_smooth(method = "lm") +
+  theme_bw()
+```
+
+
+# DesignBasedApproach
+
+-   代表的戦略は、Random Treatment Assignment のもつ性質を用いる
+
+    - ランダム化対照実験: RCT
+
+-   現実世界においてRCTに近い状況を見つける: 自然実験
+
+## Concept: 対照実験
+
+-   Controlled Trial
+
+-   **同じ**事例を複数用意して、関心のある特徴 (Treatment) のみ変え、関心のある結果 (Outcome) を比べる。
+
+    -   同じビーカーに同じ量の純水を入れ、同じ火力で熱し、沸騰までの時間を比較する。 ただし片方にのみ塩を入れる
+
+    -   差をもたらしうる要因が、Treatmentのみにする
+
+-   多くの応用事例: まったく同じ事例が見つからない \| ない \| わからない
+
+## ランダム化対照実験(RCT)
+
+-   **R**andomized **C**ontrolled **T**rial
+
+-   ランダムサンプリングが持つ性質を利用し、近似的な対照実験を行う
+
+-   研究課題・データ収集過程を工夫する
+
+1.  関心となるOutcomeとTreatmentを定める
+
+2.  実験参加者（被験者）を集める
+
+3.  Treatmentの水準を**研究者**が被験者間でランダムに決める
+
+## 例: Stats Campの効果
+
+-   大学卒業生・中退者のデータから
+
+    -   $Y \in \{0,1\}$ 留年したかどうか , $D \in \{0,1\}$ 入学前の春休みにおける"Stats Camp"
+
+    -   $Y:$ Outcome, $D:$ Treatment
+
+-   関心: Stats Camp参加・不参加者間での留年経験の差 $E[Y|D = 1] - E[Y|D = 0]$
+
+## シンプルなRCT
+
+1.  新入生から"被験者"を集める
+
+2.  被験者を**ランダム**にグループに分割する
+
+3.  グループ間の $Y$ 差を、**母集団における差を推定する手法**で推定する
+
+- グループ間での偶然の偏りは、通常の信頼区間で捉えられる
+
+    - 保守的な結果になる
+    
+## 例
+
+```{r}
+SimData <- function(i, n) {
+  set.seed(i)
+  TempData <- tibble(`StataCampに参加した場合` = sample(1:10,n,replace = TRUE)) |>
+    mutate(`StataCampに参加しなかった場合` = `StataCampに参加した場合` - as.integer(1)) |>
+    mutate(D = if_else(sample(1:n, n) <= n/2,1,0)) |>
+    mutate(Y = if_else(D == 0,
+      `StataCampに参加しなかった場合`,
+      `StataCampに参加した場合`
+    )
+    ) |> 
+    mutate(ID = i,
+           N = n)
+  return(TempData)
+}
+
+SimData(1,4) |> 
+  select(-D,-Y,-ID,-N) |> 
+  knitr::kable()
+```
+
+- 本当の平均効果 $= 1$
+
+## 例
+
+```{r}
+SimData(1,4) |> 
+  select(-ID,-N) |> 
+  knitr::kable()
+```
+
+## 例: 参加者 = 4
+
+```{r}
+Est <- function(i){
+  Temp <- SimData(i,4) %$%
+    lm(Y~D)
+  TempResult <- tibble(Est = Temp$coefficients[2],
+                       ID = i)
+  return(TempResult)
+}
+
+map_dfr(1:100,Est) |> 
+  ggplot(aes(y = ID,
+             x = Est)) +
+  geom_point() +
+  geom_vline(xintercept = 1) +
+  theme_bw() +
+  ggside::geom_xsidehistogram() +
+  xlim(-10,10)
+```
+
+## 例: 参加者 = 200
+
+```{r}
+Est <- function(i){
+  Temp <- SimData(i,200) %$%
+    lm(Y~D)
+  TempResult <- tibble(Est = Temp$coefficients[2],
+                       ID = i)
+  return(TempResult)
+}
+
+map_dfr(1:100,Est) |> 
+  ggplot(aes(y = ID,
+             x = Est)) +
+  geom_point() +
+  geom_vline(xintercept = 1) +
+  theme_bw() +
+  ggside::geom_xsidehistogram() +
+  xlim(-10,10)
+```
+
+## 例: 参加者 = 200
+
+```{r}
+Est <- function(i){
+  Temp <- SimData(i,200) %$%
+    lm_robust(Y~D)
+  TempResult <- tibble(Est = Temp$coefficients[2],
+                       Lower = Temp$conf.low[2],
+                       Upper = Temp$conf.high[2],
+                       p = if_else(Temp$conf.low > 1 | 
+                                     Temp$conf.high < 1, 
+                                   "Less than 5%",
+                                   "Larger than 5%"),
+                       ID = i)
+  return(TempResult)
+}
+
+map_dfr(1:100,Est) |> 
+  ggplot(aes(y = ID,
+             x = Est,
+             xmin = Lower,
+             xmax = Upper)) +
+  geom_pointrange(aes(color = p)) +
+  geom_vline(xintercept = 1) +
+  theme_bw() +
+  ggside::geom_xsidehistogram() +
+  xlim(-10,10)
+```
+
+
+## 自然実験
+
+- 本当に実験できるケースは限られている
+
+- 現実世界においても"条件付き"で実験的な状況は存在する = (自然実験)
+
+    - 同じ$X$内では、介入$D$はランダムに決まっている
+    
+- $E[Y|D,X]$ を推定し、 $E[Y|D=d',X]-E[Y|D=d,X]$ を計算すればOK
+
+    - OLSは一つの選択肢
+
+## 例: Life-Event Effect
+
+- 人生経験は、個人の価値観にどのような影響を与えるか？
+
+- 例: 第一子として”女の子”を育てた経験
+
+    - 子供がいる世帯内であれば？
+    
+    - $E[Y|D=女の子,子供がいる] - E[Y|D=男の子,子供がいる]$
+
+# OutcomeBasedApproach
+
+-   $E[Y|D,X]$ のより”正確な”推定を目指す
+
+    - $Y$ と $D$ 双方に影響を与える要因(交絡因子)をモデルに含める
+    
+## 概念図
+
+```{r, dev='ragg_png'}
+dag <- dagitty("dag {
+               UnobservableXs -> Outcome
+               UnobservableXs -> Treatment
+               ObservableXs -> Treatment
+               ObservableXs -> Outcome
+               Treatment -> Outcome
+}")
+ggdag(dag, 
+      use_labels = "name", 
+      text = FALSE) + 
+  theme_dag()
+
+```
+
+## 観察できる要因
+
+```{r, dev='ragg_png'}
+dag <- dagitty("dag {
+               UnobservableXs -> Crime
+               UnobservableXs -> Library
+               Population -> Library
+               Population -> Crime
+               Library -> Crime
+}")
+
+ggdag(dag, 
+      use_labels = "name", 
+      text = FALSE) + 
+  theme_dag()
+```
+
+## 観察できる要因
+
+- 推定式に観察できる要因を加える
+
+$$E[Y|D,X]=\beta_D\times D + \underbrace{\beta_1X_1,..,\beta_LX_L}_{交絡因子}$$
+
+$$E[Crime|Library,Population]=\beta_D\times Library $$
+
+$$+ \beta_1\times Population$$
+
+## 注意点
+
+- 一般にモデルの定式化に推定結果は異存する
+
+$$E[Crime|Library,Population]=\beta_D\times Library $$
+
+$$+ \beta_1\times Population $$
+
+$$+ \beta_2\times Population^2$$
+
+- 結果が異なる
+
+- シンプルな対応: 二乗項までは含める
+
+    - 多くの発展的な手法が提案されている
+
+## 観察できない要因
+
+- 一般に観察できない交絡因子が存在する
+
+    - 対応が難しい
+
+```{r, dev='ragg_png'}
+dag <- dagitty("dag {
+               History -> Crime
+               History -> Library
+               Event -> Crime
+               Event -> Library
+               Observable -> Library
+               Observable -> Crime
+               Library -> Crime
+}")
+
+ggdag(dag, 
+      use_labels = "name", 
+      text = FALSE) + 
+  theme_dag()
+```
+
+## 固定効果
+
+- 観察できない交絡因子「そのものを直接観察できる必要はない」
+
+$$E[Y|D=d,X]-E[Y|D=d',X]$$ 内で 共通であればいい
+
+- 例: 
+
+    - 同一地域であれば、地域の歴史は共通 (地域固定効果)
+    
+    - 同一時点であれば、イベントは共通 (時点固定効果)
+
+- ただし$D$ まで共通だと比較ができない
+
+## パネルデータ
+
+- 同一地域、個人、企業を継続的に調査
+
+    - 同一主体について、複数時点が観察可能
+    
+    - 調査途中で$D$が変化する可能性
+
+- "仮想的に"同一地域、時点内で異なる $D$を比較するモデルを推定できる
+
+## 固定効果モデル
+
+- 以下を推定
+
+$$E[Y|D,Region,Period]=\beta_0$$
+
+$$ + \beta_DD+RegionDummy+PeriodDummy$$
+
+- 固定効果モデル
+
+## 注意点
+
+- 地域、時点固有ではない観察できない交絡因子があるとだめ
+
+- モデルの定式化に推定結果が依存する
+
+    - 多くの発展的議論
+    
+## まとめ
+
+- 統計的因果推論は学際的に急速な発展を遂げる
+
+- 実務者からも高い関心
+
+    - "経済学部生"に比較優位
+
+- ぜひ継続して勉強してください！！！

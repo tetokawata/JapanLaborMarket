@@ -1,0 +1,411 @@
+---
+title: "人口"
+subtitle: "労働経済学2"
+author: "川田恵介"
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    self-contained: true
+execute: 
+  warning: false
+  message: false
+  echo: false
+  eval: true
+bibliography: references.bib
+---
+
+- 労働問題の重要基盤の一つ
+
+    - 明確な定義に基づく議論の有用性
+
+    - 長期的な変化の可視化手段として、Animationの活用
+
+## 人口
+
+- 人口構造は、古今・所を問わず大きな関心を集めてきた
+
+- [World Population Prospects](https://population.un.org/wpp/) (国連 2022)
+
+    - 2023年にインドは
+    
+        - 人口が世界一
+
+        - インドの出生率はstable
+
+- ”全ての”先進国において、少子高齢化が進展
+
+    - 多くの発展途上国も続く
+
+## 人口統計
+
+- 人口把握は、多くの（古代含む）国家において、中核的関心
+
+    - 近代日本においては、4年に一度行われる[国勢調査](https://www.stat.go.jp/data/kokusei/2020/index.html)
+    
+    - 1920年より公開されている
+
+## 長期時系列
+
+- 人口構造の変化は”ゆっくり”生じる
+
+- 国勢調査より、多くの時点が観察可能
+
+    - 微妙に変化する大量の図が生成され、読みにくい
+    
+- アニメーションの活用が一案
+
+    - Rでは簡単に作れる
+    
+    - 人間の認知機能とマッチ
+
+## 人口推移
+
+```{r, dev='ragg_png'}
+pacman::p_load(tidyverse,
+               gganimate,
+               patchwork)
+
+read_csv("Data/Population.csv") |> 
+  rename(Population = `人口（総数）`,
+         Year = `西暦（年）`,
+         Age = 年齢5歳階級) |> 
+  filter(Age != "総数") |> 
+  select(Population,
+         Year,
+         Age) |> 
+  mutate(Year = as.integer(Year)) |> 
+  write_csv("PublicData/Population.csv")
+
+Data <- read_csv("PublicData/Population.csv") |> 
+  pivot_wider(names_from = Age,
+              values_from = Population) |> 
+  map_dfr(function(x){replace_na(x,0)}) |> 
+  mutate(`85歳以上` = `85歳以上` + 
+           `85〜89歳` +
+           `90〜94歳` +
+           `95〜99歳` +
+           `100〜104歳` +
+           `105〜109歳` +
+           `110歳以上`) |> 
+  select(-`85〜89歳`,
+         -`90〜94歳`,
+         -`95〜99歳`,
+         -`100〜104歳`,
+         -`105〜109歳`,
+         -`110歳以上`
+         ) |> 
+  pivot_longer(c(-Year)) |> 
+  rename(Age = name,
+         Population = value)
+
+Level <- unique(Data$Age)
+
+Data |> 
+  ggplot(aes(y = factor(Age,
+                        levels = Level),
+             x = Population)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~Year)
+```
+
+## 人口推移
+
+```{r, dev='ragg_png'}
+Data <- read_csv("PublicData/Population.csv") |> 
+  pivot_wider(names_from = Age,
+              values_from = Population) |> 
+  map_dfr(function(x){replace_na(x,0)}) |> 
+  mutate(`85歳以上` = `85歳以上` + 
+           `85〜89歳` +
+           `90〜94歳` +
+           `95〜99歳` +
+           `100〜104歳` +
+           `105〜109歳` +
+           `110歳以上`) |> 
+  select(-`85〜89歳`,
+         -`90〜94歳`,
+         -`95〜99歳`,
+         -`100〜104歳`,
+         -`105〜109歳`,
+         -`110歳以上`
+         ) |> 
+  pivot_longer(c(-Year)) |> 
+  rename(Age = name,
+         Population = value)
+
+Level <- unique(Data$Age)
+
+Data |> 
+  ggplot(aes(y = factor(Age,
+                        levels = Level),
+             x = Population)) +
+  geom_bar(stat = "identity") +
+  labs(title = 'Year: {frame_time}') +
+  transition_time(Year)
+```
+
+## 少子高齢化問題
+
+- 年齢グループの分類
+
+    - 生産年齢人口: 15~64才
+    
+    - ~15才, 65才〜: 従属人口
+    
+        - "一般に"稼得手段を生産年齢人口に"依存"
+
+- 少子高齢化問題の典型的論点
+
+    - 2025年問題: 団塊の世代が後期高齢者
+
+    - かつてないほど、相対的に少ない生産年齢人口で、相対的に大きな従属人口を支える必要がある?
+
+    - 出生率の改善が重要?
+
+## イメージ
+
+::: {#fig-Elder layout-ncol=2}
+
+![ElderCar](Picture/ElderCar.jpeg){#fig-surus}
+
+Elder
+:::
+
+## イメージ
+
+::: {#fig-ElderBaby layout-ncol=2}
+
+![ElderCar](Picture/ElderCar.jpeg){#fig-surus}
+
+![BabyCar](Picture/BabyCar.jpeg){#fig-hanno}
+
+Elder & Baby
+:::
+
+
+## 人口比率
+
+```{r, dev='ragg_png'}
+
+
+Data <- read_csv("PublicData/Population.csv") |> 
+  pivot_wider(names_from = Age,
+              values_from = Population) |> 
+  map_dfr(function(x){replace_na(x,0)}) |> 
+  mutate(`15歳以下` = `0〜4歳` +
+           `5〜9歳` +
+           `10〜14歳`,
+         `15-65歳` = `15〜19歳` +
+           `20〜24歳` +
+           `25〜29歳` +
+           `30〜34歳` +
+           `30〜34歳` +
+           `35〜39歳` +
+           `40〜44歳` +
+           `45〜49歳` +
+           `50〜54歳` +
+           `55〜59歳` +
+           `60〜64歳`,
+         `65歳以上` = `65〜69歳` +
+           `70〜74歳` +
+           `75〜79歳` +
+           `80〜84歳` +
+           `85歳以上` + 
+           `85〜89歳` +
+           `90〜94歳` +
+           `95〜99歳` +
+           `100〜104歳` +
+           `105〜109歳` +
+           `110歳以上`) |> 
+  select(Year,
+         `15歳以下`,
+         `15-65歳`,
+         `65歳以上`
+         ) |> 
+  pivot_longer(c(-Year)) |> 
+  rename(Age = name,
+         Population = value)
+
+Level <- unique(Data$Age)
+
+Data |> 
+  ggplot(aes(y = factor(Age,
+                        levels = Level),
+             x = Population)) +
+  geom_bar(stat = "identity") +
+  labs(title = 'Year: {frame_time}') +
+  transition_time(Year) +
+  theme_bw()
+```
+
+
+## 従属人口比率
+
+- 従属人口/生産年齢人口
+
+```{r, dev='ragg_png'}
+read_csv("PublicData/Population.csv") |> 
+  pivot_wider(names_from = Age,
+              values_from = Population) |> 
+  map_dfr(function(x){replace_na(x,0)}) |> 
+  mutate(`15歳以下` = `0〜4歳` +
+           `5〜9歳` +
+           `10〜14歳`,
+         `15-65歳` = `15〜19歳` +
+           `20〜24歳` +
+           `25〜29歳` +
+           `30〜34歳` +
+           `30〜34歳` +
+           `35〜39歳` +
+           `40〜44歳` +
+           `45〜49歳` +
+           `50〜54歳` +
+           `55〜59歳` +
+           `60〜64歳`,
+         `65歳以上` = `65〜69歳` +
+           `70〜74歳` +
+           `75〜79歳` +
+           `80〜84歳` +
+           `85歳以上` + 
+           `85〜89歳` +
+           `90〜94歳` +
+           `95〜99歳` +
+           `100〜104歳` +
+           `105〜109歳` +
+           `110歳以上`) |> 
+  mutate(ChildRatio = `15歳以下`/(`15-65歳`),
+         ElderRatio = `65歳以上`/(`15-65歳`)) |> 
+  mutate(Dependency = ChildRatio + ElderRatio) |> 
+  select(Year,ChildRatio,ElderRatio,Dependency) |> 
+  pivot_longer(c(ChildRatio,ElderRatio,Dependency)) |> 
+  ggplot(aes(x = name,
+             y = value)
+         ) +
+  geom_bar(stat = "identity") +
+  labs(title = 'Year: {frame_time}') +
+  transition_time(Year) +
+  ylim(0,1)
+```
+
+## Dependency plot
+
+- 従属年齢人口/生産年齢人口
+
+```{r, dev='ragg_png'}
+Fig1 <- read_csv("PublicData/Population.csv") |> 
+  pivot_wider(names_from = Age,
+              values_from = Population) |> 
+  map_dfr(function(x){replace_na(x,0)}) |> 
+  mutate(`15歳以下` = `0〜4歳` +
+           `5〜9歳` +
+           `10〜14歳`,
+         `15-65歳` = `15〜19歳` +
+           `20〜24歳` +
+           `25〜29歳` +
+           `30〜34歳` +
+           `30〜34歳` +
+           `35〜39歳` +
+           `40〜44歳` +
+           `45〜49歳` +
+           `50〜54歳` +
+           `55〜59歳` +
+           `60〜64歳`,
+         `65歳以上` = `65〜69歳` +
+           `70〜74歳` +
+           `75〜79歳` +
+           `80〜84歳` +
+           `85歳以上` + 
+           `85〜89歳` +
+           `90〜94歳` +
+           `95〜99歳` +
+           `100〜104歳` +
+           `105〜109歳` +
+           `110歳以上`) |> 
+  mutate(ChildRatio = `15歳以下`/(`15-65歳`),
+         ElderRatio = `65歳以上`/(`15-65歳`)) |> 
+  select(Year,ChildRatio,ElderRatio) |> 
+  ggplot(aes(x = ChildRatio,
+             y = ElderRatio,
+             label = Year)
+         ) +
+  geom_point() +
+  ggrepel::geom_text_repel() +
+  xlim(0,0.6) +
+  ylim(0,0.6) +
+  geom_abline(intercept = 0.40040196 + 0.1900800,
+              slope = -1) +
+  theme_bw()
+
+Fig1
+```
+
+## 少子化対策
+
+- 育児手当、保育園・幼稚園の充実等々
+
+    - 将来への投資・育児負担の軽減（公平性）などなど
+    
+- 2025年問題への対策となる？
+
+    - 従属人口比率を**上げる**
+
+## Dependency plot
+
+- 従属年齢人口(70才以上)/生産年齢人口
+
+```{r, dev='ragg_png'}
+Fig2 <- read_csv("PublicData/Population.csv") |> 
+  pivot_wider(names_from = Age,
+              values_from = Population) |> 
+  map_dfr(function(x){replace_na(x,0)}) |> 
+  mutate(`15歳以下` = `0〜4歳` +
+           `5〜9歳` +
+           `10〜14歳`,
+         `15-65歳` = `15〜19歳` +
+           `20〜24歳` +
+           `25〜29歳` +
+           `30〜34歳` +
+           `30〜34歳` +
+           `35〜39歳` +
+           `40〜44歳` +
+           `45〜49歳` +
+           `50〜54歳` +
+           `55〜59歳` +
+           `60〜64歳`,
+         `70歳以上` = 
+           `70〜74歳` +
+           `75〜79歳` +
+           `80〜84歳` +
+           `85歳以上` + 
+           `85〜89歳` +
+           `90〜94歳` +
+           `95〜99歳` +
+           `100〜104歳` +
+           `105〜109歳` +
+           `110歳以上`) |> 
+  mutate(ChildRatio = `15歳以下`/(`15-65歳`),
+         ElderRatio = `70歳以上`/(`15-65歳`)) |> 
+  mutate(Dependency = ChildRatio + ElderRatio) |> 
+  ggplot(aes(x = ChildRatio,
+             y = ElderRatio,
+             label = Year)
+         ) +
+  geom_point() +
+  ggrepel::geom_text_repel() +
+  xlim(0,0.6) +
+  ylim(0,0.6) +
+  geom_abline(intercept = 0.40040196 + 0.1900800,
+              slope = -1) +
+  theme_bw()
+
+Fig2
+```
+
+## まとめ
+
+- 単純なものでも、明確な定義に基づく指標は有益
+
+    - 議論を整理できる
+    
+- 従属人口 -> 高齢者だけでなく、児童も含む

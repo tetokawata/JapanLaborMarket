@@ -1,0 +1,48 @@
+---
+title: "最低賃金の効果検証"
+author: "川田恵介"
+format: docx
+execute: 
+  warning: false
+  message: false
+  echo: true
+---
+
+# 準備
+
+```{r}
+library(tidyverse)
+library(estimatr)
+library(dotwhisker)
+
+Data <- read_csv("SearchMW.csv")
+```
+
+# 可視化
+
+```{r}
+ggplot(Data, aes(x = MinimumWage,
+                 y = Employment)) +
+  geom_point()
+```
+
+- よくわからない
+
+# 回帰分析
+
+```{r}
+Fit1 <- lm_robust(Employment ~ MinimumWage,
+                  Data)
+
+Fit2 <- lm_robust(Employment ~ MinimumWage + Pref,
+                  Data)
+
+Fit3 <- lm_robust(Employment ~ MinimumWage + Pref + factor(Year),
+                  Data,
+                  clusters = Pref)
+
+dwplot(list(Fit1,Fit2,Fit3),
+       vars_order = c("MinimumWage"))
+```
+
+

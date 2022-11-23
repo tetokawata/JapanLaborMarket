@@ -1,0 +1,48 @@
+---
+title: "Untitled"
+format: html
+---
+
+
+```{r}
+library(tidyverse)
+
+Data <- read_csv("PriceNumber.csv")
+
+ggplot(Data, aes(x = N, y = Income)) +
+  geom_point() +
+  geom_smooth(method = "lm",
+              se = FALSE)
+```
+
+単回帰分析
+
+```{r}
+lm(Income ~ N, Data) 
+```
+
+重回帰分析
+
+```{r}
+lm(Income ~ N + Year + Industry, Data)
+```
+
+可視化
+
+```{r}
+library(dotwhisker)
+library(estimatr) # Robust Standard Error
+
+Fit <- lm_robust(Income ~ N + Year + Industry, Data)
+
+dwplot(Fit)
+```
+
+Nについての可視化
+
+```{r}
+dwplot(Fit, vars_order = c("N")) +
+  geom_vline(xintercept = 0)
+```
+
+

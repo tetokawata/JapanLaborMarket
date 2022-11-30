@@ -1,0 +1,365 @@
+---
+title: "探索的データ分析"
+subtitle: "労働経済学2"
+author: "川田恵介"
+format:
+  revealjs:
+    incremental: true 
+    slide-number: true
+    self-contained: true
+execute: 
+  warning: false
+  message: false
+  echo: false
+  eval: true
+bibliography: references.bib
+---
+
+```{r}
+pacman::p_load(tidyverse,
+               estimatr,
+               magrittr)
+
+Data <- read_csv("PublicData/MatchingMW.csv")
+```
+
+
+- 数理分析 (データ分析 & 経済モデル)は有益な分析ツール
+
+    - 致命的な落とし穴を避けることができる
+    
+    - ただし前知識が必要
+    
+    - 特に"探索的"データ分析において、今後深刻化する恐れ
+    
+## 探索的データ分析
+
+- $Y$ と変数群 $X$ の関係性をざっくり把握する
+
+    - 線形近似モデルを用いる
+    
+    - 関係性の原因は問わない
+
+- 因果推論: 因果的な関係性を把握する
+
+- 経済モデル: いくつかの基本アイディア（インセンティブ、資源制約等々）を元に関係性を整理する
+
+    - 比較的少数の変数に焦点を当てる
+    
+- 労働分析において有益
+
+## 探索的線形モデル
+
+$$E[Y|X_1,..,X_L]=\underbrace{\beta_0 + \beta_1 X_1+..+\beta_LX_L}_{全て関心}$$
+
+- Mincer型賃金モデル: $X=$ 年齢、性別、学歴、勤続年数
+
+- 都道府県間賃金格差: $X=$ 47都道府県
+
+## 例
+
+```{r, dev='ragg_png'}
+
+Data |> 
+  mutate(Pref = relevel(factor(Pref),ref = "東京")) %$%
+  lm_robust(Vacancy ~ Pref) |> 
+  tidy() |> 
+  filter(term != "(Intercept)") |> 
+  mutate(term = str_sub(term,5)) |> 
+  ggplot(aes(y = term,
+             x = estimate,
+             xmin = conf.low,
+             xmax = conf.high)
+         ) +
+  geom_pointrange()
+```
+
+
+## 多重検定
+
+- 複数のパラメータを推定したい
+
+  - 賃金と性別と学歴の関係性をざっくり比較したい
+  
+  - 各都道府県間格差を推定したい
+
+
+## 復習: 信頼区間
+
+-   信頼区間: "同じデータ活用・サンプリング法を用いる研究者"の $1 -\alpha %$ が正しい値を含む信頼区間を獲得できる
+
+    -   "間違った"区間をえる研究者割合$\alpha$ をコントロール
+
+-   特定の推定値(Point-wise)についてValidな信頼区間
+
+    -   大量の推定値について適用できるか？
+
+## 例
+
+-   Research question: 「サイコロの出目をコントロールできるか？」
+
+    -   サイコロの出目の平均値を操作できるか？
+
+-   一人のプレイヤーのみを収集するのであれば、Defaltは有効
+
+## 適切: 1 player
+
+```{r, dev='ragg_png'}
+Researcher <- 9
+Player <- 1
+Try <- 30
+
+ResearcherName <- str_c("Researcher",c(1:Researcher))
+
+SimNoAdjust <- function(Researcher){
+  set.seed(Researcher)
+  TempResult <- map_dfr(1:Player,function(i){
+  Dice <- sample(1:6,Try,replace = TRUE)
+  Temp <- lm_robust(Dice ~ 1)
+  TempResult <- tibble(Point = Temp$coefficients,
+                   Lower = Temp$conf.low,
+                   Upper = Temp$conf.high,
+                   Player = "1",
+                   Researcher = ResearcherName[Researcher],
+                   Method = "No adjustment")
+  return(TempResult)
+  })
+  return(TempResult)
+}
+
+map_dfr(1:Researcher,SimNoAdjust) |> 
+  mutate(Error = if_else(Lower > 3.5 |
+                           Upper < 3.5,
+                         "Error",
+                         "No")) |> 
+  ggplot(aes(y = Player,
+             x = Point,
+             xmin = Lower,
+             xmax = Upper,
+             color = Error)) +
+  geom_pointrange() +
+  geom_vline(xintercept = 3.5) +
+  theme_bw() +
+  facet_wrap(~Researcher) +
+  xlim(1,6)
+```
+
+## 例
+
+-   Research question: 「サイコロの出目をコントロールできるか？」
+
+    -   サイコロの出目の平均値を操作できるか？
+
+-   「100名のプレイヤーのなかから、操作できるプレイヤーを見つけられるか？」であれば、不適切
+
+## 不適切: Small sample
+
+```{r,dev='ragg_png'}
+Researcher <- 6
+Player <- 100
+Try <- 30
+ResearchName <- str_c("研究者",c(1:6))
+
+SimNoAdjust <- function(Researcher){
+  set.seed(Researcher)
+  TempResult <- map_dfr(1:Player,function(i){
+  Dice <- sample(1:6,Try,replace = TRUE)
+  Temp <- lm_robust(Dice ~ 1)
+  TempResult <- tibble(Point = Temp$coefficients,
+                   Lower = Temp$conf.low,
+                   Upper = Temp$conf.high,
+                   Player = i,
+                   Researcher = ResearchName[Researcher],
+                   Method = "No adjustment")
+  return(TempResult)
+  })
+  return(TempResult)
+}
+
+map_dfr(1:Researcher,SimNoAdjust) |> 
+  mutate(Error = if_else(Lower > 3.5 |
+                           Upper < 3.5,
+                         "Error",
+                         "No")) |> 
+  ggplot(aes(y = Player,
+             x = Point,
+             xmin = Lower,
+             xmax = Upper,
+             color = Error)) +
+  geom_pointrange() +
+  geom_vline(xintercept = 3.5) +
+  theme_bw() +
+  facet_wrap(~Researcher) +
+  xlim(1,6)
+```
+
+## 不適切: Larger sample
+
+```{r,dev='ragg_png'}
+Researcher <- 6
+Player <- 100
+Try <- 1000
+ResearchName <- str_c("研究者",c(1:6))
+
+
+SimNoAdjust <- function(Researcher){
+  set.seed(Researcher)
+  TempResult <- map_dfr(1:Player,function(i){
+  Dice <- sample(1:6,Try,replace = TRUE)
+  Temp <- lm_robust(Dice ~ 1)
+  TempResult <- tibble(Point = Temp$coefficients,
+                   Lower = Temp$conf.low,
+                   Upper = Temp$conf.high,
+                   Player = i,
+                   Researcher = ResearchName[Researcher],
+                   Method = "No adjustment")
+  return(TempResult)
+  })
+  return(TempResult)
+}
+
+map_dfr(1:Researcher,SimNoAdjust) |> 
+  mutate(Error = if_else(Lower > 3.5 |
+                           Upper < 3.5,
+                         "Error",
+                         "No")) |> 
+  ggplot(aes(y = Player,
+             x = Point,
+             xmin = Lower,
+             xmax = Upper,
+             color = Error)) +
+  geom_pointrange() +
+  geom_vline(xintercept = 3.5) +
+  theme_bw() +
+  facet_wrap(~Researcher) +
+  xlim(1,6)
+```
+
+## 問題点
+
+-   「本来はほとんど差がないのに、サンプルが偶然偏った結果、大きな差が推定される」
+
+    -   なんとしてでも注目されたい研究者にとっての、「当たりくじ」
+
+-   「どんなに当たり確率が低いくじであったとしても、無限回引けば"絶対" に当たる」
+
+-   「ある一人のプレイヤーについて、間違えを犯す研究者の割合」 $\le$ 「１００名中一人以上に間違えを犯す研究者の割合」
+
+    -   一般的に生じる問題
+    
+    -   BigDataは解決しない
+
+
+## Family-wise confidence intervals
+
+-   Family-wise confidence interval: 複数の推定値が前提
+
+    -   **一つ以上**の信頼区間が真の値を含まない確率を $\alpha_{Family}$ 以内に抑える
+
+-   Point-wise confidence interval: ある一つの推定値について、信頼区間が真の値を含まない確率を $\alpha_{Point}$ 以内に抑える
+
+-   Bonferroni法: $\alpha_{Family} = \alpha_{Point}/推定値数$
+
+## 例
+
+```{r, dev='ragg_png'}
+Data |> 
+  mutate(Pref = relevel(factor(Pref),ref = "東京")) %$%
+  lm_robust(Vacancy ~ Pref,
+            alpha = 0.05/47) |> 
+  tidy() |> 
+  filter(term != "(Intercept)") |> 
+  mutate(term = str_sub(term,5)) |> 
+  ggplot(aes(y = term,
+             x = estimate,
+             xmin = conf.low,
+             xmax = conf.high)
+         ) +
+  geom_pointrange() +
+  theme_bw()
+```
+
+## 発展: Bonferroni法の根拠
+
+-   以下の一般原則を利用
+
+$一つ以上の区間について間違いが起こる確率\ (=\alpha_{Family})$
+
+$\le 区間1について間違いが起きる確率$
+
+$+...+区間Lについて間違いが起きる確率\ (=L\times \alpha_{Point})$
+
+## 適切: Larger sample with adjustment
+
+```{r, dev='ragg_png'}
+Researcher <- 6
+Player <- 100
+Try <- 30
+ResearchName <- str_c("研究者",c(1:6))
+
+
+SimNoAdjust <- function(Researcher){
+  set.seed(Researcher)
+  TempResult <- map_dfr(1:Player,function(i){
+  Dice <- sample(1:6,Try,replace = TRUE)
+  Temp <- lm_robust(Dice ~ 1,
+                    alpha = 0.05/100)
+  TempResult <- tibble(Point = Temp$coefficients,
+                   Lower = Temp$conf.low,
+                   Upper = Temp$conf.high,
+                   Player = i,
+                   Researcher = ResearchName[Researcher],
+                   Method = "No adjustment")
+  return(TempResult)
+  })
+  return(TempResult)
+}
+
+map_dfr(1:Researcher,SimNoAdjust) |> 
+  mutate(Error = if_else(Lower > 3.5 |
+                           Upper < 3.5,
+                         "Error",
+                         "No")) |> 
+  ggplot(aes(y = Player,
+             x = Point,
+             xmin = Lower,
+             xmax = Upper,
+             color = Error)) +
+  geom_pointrange() +
+  geom_vline(xintercept = 3.5) +
+  theme_bw() +
+  facet_wrap(~Researcher) +
+  xlim(1,6)
+```
+
+## 発展: 他の手法
+
+-   統計的検定を発見的に使いたい場合、0.5% に設定すべきという主張も
+
+-   多重検定問題への対応法研究は進む
+
+    -   検定したいパラメータが非常に多くなると、 Powerが大幅に悪化することが動機
+
+-   改善例: False Discovery Rate, Uniform inferenceなどなど
+
+## 再定式化
+
+- 線形モデル $E[Y|X_1,..,X_L]=\beta_0+\beta_1X_l+..+\beta_LX_L$
+
+- 一般に$\beta_0$は解釈しにくい
+
+    - $X=0$ の場合の$Y$の平均値。。。？
+    
+- $X$ を中央化(Centralized)する 
+
+    - $\tilde X = X - mean(X)$
+
+- $\beta_0 =$ 全ての$X$が平均値であった場合の$Y$の平均値
+
+## まとめ
+
+- なんの考慮・対処をせずに多重検定を行なっている事例は極めて多い
+
+    - いくらでも超能力者を"発見できる"
+
+- 発見的に統計分析は慎重に

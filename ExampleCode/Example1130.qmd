@@ -1,0 +1,43 @@
+---
+title: "多重検定の補正"
+author: "川田恵介"
+format: docx
+execute: 
+  warning: false
+  message: false
+  echo: true
+---
+
+# 準備
+
+- ハローワークデータ
+
+```{r}
+library(tidyverse)
+library(estimatr)
+library(dotwhisker)
+
+Data <- read_csv("SearchMW.csv")
+```
+
+# 推定
+
+- 東京都と他都道府県との間での就職件数格差の推定
+
+```{r}
+A <- 0.05/46 # 信頼区間の調整
+
+Data <- mutate(Data,
+               Pref = factor(Pref),
+               Pref = relevel(Pref,"東京")) # 東京をReference
+
+Fit <- lm_robust(Employment ~ Pref,
+                 Data,
+                 alpha = A) # 信頼区間の設定
+
+dwplot(Fit)
+```
+
+
+
+

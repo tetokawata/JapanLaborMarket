@@ -1,0 +1,64 @@
+---
+title: "Untitled"
+format: html
+execute: 
+  warnin: false
+  message: false
+---
+
+```{r}
+library(tidyverse)
+
+Data <- tibble(X = c(1,2,3),
+               Y = c(2,4,NA))
+
+summary(Data)
+```
+
+# Mutate関数
+
+- 変数の作成
+
+```{r}
+Data <- mutate(Data, 
+       XY = X*Y, # 掛け算
+       XplusY = X + Y, # 足し算
+       XdeviedY = X/Y # 割り算
+       )
+```
+
+# Select関数
+
+```{r}
+select(Data, Y,X) # YとXのみを残す
+
+select(Data, -XY) # XYを落とす
+```
+
+# Filter関数
+
+```{r}
+filter(Data, Y >= 2) # Yが２以上のデータのみ残す
+```
+
+# na.omit関数
+
+```{r}
+DataClean <- na.omit(Data)
+```
+
+# 最低限のデータ整備
+
+1. summary関数を使った変数の確認
+
+2. select関数を使った分析に用いる変数の厳選
+
+3. na.omit関数を使った欠損事例の除去
+
+
+
+
+
+
+
+
